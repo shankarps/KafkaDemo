@@ -1,51 +1,40 @@
 package com.shankar.KafkaDemo;
 
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.listener.MessageListenerContainer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
-import org.springframework.kafka.test.utils.ContainerTestUtils;
-import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
 import static com.shankar.KafkaDemo.Topology.DEMO_TOPIC;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.springframework.kafka.test.hamcrest.KafkaMatchers.hasValue;
 
-@RunWith(SpringRunner.class)
-@SpringBootTest
-public class KafkaDemoApplicationTests {
+public class KafkaServerSinglePartitionWithManualConsumerTests {
 
-    @Autowired
-    private KafkaListenerEndpointRegistry kafkaListenerEndpointRegistry;
-
-	@ClassRule
-	public static KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 2,
-			DEMO_TOPIC);
-
+    @ClassRule
+    public static KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 1,
+            DEMO_TOPIC);
     private static Consumer<String, String> messageConsumer;
     private static KafkaTemplate<String, String> kafkaTemplate;
 
@@ -71,19 +60,61 @@ public class KafkaDemoApplicationTests {
                 consumerProps);
         messageConsumer = consumerFactory.createConsumer();
         assertNotNull(messageConsumer);
-        embeddedKafka.consumeFromAllEmbeddedTopics(messageConsumer);
+        //embeddedKafka.consumeFromAllEmbeddedTopics(messageConsumer);
+        //messageConsumer.subscribe(Arrays.asList(DEMO_TOPIC));
+        messageConsumer.subscribe(Arrays.asList(DEMO_TOPIC), new ConsumerRebalanceListener() {
+            public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+            }
+
+            public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+                System.out.println("partitions assigned: " + partitions);
+            }
+        });
     }
 
     @Test
-    public void verifyKafkaSetup(){
-        assert(embeddedKafka.getPartitionsPerTopic() == 2);
+    public void verifyKafkaServerPartitions() {
+        assert (embeddedKafka.getPartitionsPerTopic() == 1);
     }
 
-	@Test
-	public void verifySendReceiveMessage() {
+    @Test
+    public void verifySendReceiveSingleMessage() throws InterruptedException {
+        //poll first to consume all messages in pipe - Why should this be done?
+        messageConsumer.commitSync();
+        ConsumerRecords<String, String> records = messageConsumer.poll(1000);
+        assert(records.isEmpty());
+        //send a message
         kafkaTemplate.send(DEMO_TOPIC, "Test message from JUnit");
-        ConsumerRecord<String, String> received = KafkaTestUtils.getSingleRecord(messageConsumer,DEMO_TOPIC);
-        hasValue("Test message from JUnit").matches(received);
-	}
+        //poll again
+        records = messageConsumer.poll(1000);
+        //verify that u received a message
+        assert (records.count() == 1);
+        for (ConsumerRecord<String, String> record : records) {
+            hasValue("Test message from JUnit").matches(record);
+        }
+        //this is important. Same consumer will be used in other methods, so commit to update the offset.
+        messageConsumer.commitSync();
+    }
+
+    @Test
+    public void verifySendReceiveMultipleMessages() throws InterruptedException {
+        //poll first to consume all messages in pipe - Why should this be done?
+        ConsumerRecords<String, String> records = messageConsumer.poll(1000);
+        assert(records.isEmpty());
+        messageConsumer.commitSync();
+        //send a message
+        kafkaTemplate.send(DEMO_TOPIC, "key1","Test message from JUnit 1" );
+        kafkaTemplate.send(DEMO_TOPIC, "key2","Test message from JUnit 2");
+        kafkaTemplate.send(DEMO_TOPIC, "key3","Test message from JUnit 3");
+        //poll again
+        records = messageConsumer.poll(1000);
+        //verify that u received the messages
+        assertTrue("After first read records count is not 3. It is "+records.count(),records.count() == 3);
+
+        for (ConsumerRecord<String, String> record : records) {
+            assertTrue ("Message is not the same as sent message. "+record.value(), record.value().contains("Test message"));
+        }
+        messageConsumer.commitSync();
+    }
 
 }
