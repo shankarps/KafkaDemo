@@ -1,24 +1,20 @@
-package com.shankar.KafkaDemo;
+package com.shankar.KafkaDemo.chapter3;
 
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,7 +26,15 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.springframework.kafka.test.hamcrest.KafkaMatchers.hasValue;
 
-public class KafkaServerSinglePartitionWithManualConsumerTests {
+/*
+ *This class tests the following:
+ * 1. Create an embedded Kafka Server
+ * 2. Create a Spring Kafka message template and send messages.
+ * 3. Create a plain Kafka Consumer and consume the messages.
+ * @see https://docs.spring.io/spring-kafka/docs/2.1.6.RELEASE/reference/html/_introduction.html#_introduction
+ */
+
+public class PollingConsumerProducerTest {
 
     @ClassRule
     public static KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 1,
@@ -56,7 +60,7 @@ public class KafkaServerSinglePartitionWithManualConsumerTests {
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "Test_Group");
 
-        DefaultKafkaConsumerFactory<String, String> consumerFactory = new DefaultKafkaConsumerFactory<String, String>(
+        DefaultKafkaConsumerFactory<String, String> consumerFactory = new DefaultKafkaConsumerFactory<>(
                 consumerProps);
         messageConsumer = consumerFactory.createConsumer();
         assertNotNull(messageConsumer);
@@ -97,7 +101,7 @@ public class KafkaServerSinglePartitionWithManualConsumerTests {
     }
 
     @Test
-    public void verifySendReceiveMultipleMessages() throws InterruptedException {
+    public void verifySendAndPollMultipleMessages() throws InterruptedException {
         //poll first to consume all messages in pipe - Why should this be done?
         ConsumerRecords<String, String> records = messageConsumer.poll(1000);
         assert(records.isEmpty());
@@ -115,6 +119,11 @@ public class KafkaServerSinglePartitionWithManualConsumerTests {
             assertTrue ("Message is not the same as sent message. "+record.value(), record.value().contains("Test message"));
         }
         messageConsumer.commitSync();
+    }
+
+    @AfterClass
+    public static void cleanup() throws Exception {
+        embeddedKafka.destroy();
     }
 
 }
