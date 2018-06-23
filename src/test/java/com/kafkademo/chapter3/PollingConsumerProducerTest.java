@@ -1,5 +1,6 @@
-package com.shankar.KafkaDemo.chapter3;
+package com.kafkademo.chapter3;
 
+import com.kafkademo.Topology;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -21,7 +22,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.shankar.KafkaDemo.Topology.DEMO_TOPIC;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.springframework.kafka.test.hamcrest.KafkaMatchers.hasValue;
@@ -38,7 +38,7 @@ public class PollingConsumerProducerTest {
 
     @ClassRule
     public static KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 1,
-            DEMO_TOPIC);
+            Topology.DEMO_TOPIC);
     private static Consumer<String, String> messageConsumer;
     private static KafkaTemplate<String, String> kafkaTemplate;
 
@@ -66,7 +66,7 @@ public class PollingConsumerProducerTest {
         assertNotNull(messageConsumer);
         //embeddedKafka.consumeFromAllEmbeddedTopics(messageConsumer);
         //messageConsumer.subscribe(Arrays.asList(DEMO_TOPIC));
-        messageConsumer.subscribe(Arrays.asList(DEMO_TOPIC), new ConsumerRebalanceListener() {
+        messageConsumer.subscribe(Arrays.asList(Topology.DEMO_TOPIC), new ConsumerRebalanceListener() {
             public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
             }
 
@@ -88,7 +88,7 @@ public class PollingConsumerProducerTest {
         ConsumerRecords<String, String> records = messageConsumer.poll(1000);
         assert(records.isEmpty());
         //send a message
-        kafkaTemplate.send(DEMO_TOPIC, "Test message from JUnit");
+        kafkaTemplate.send(Topology.DEMO_TOPIC, "Test message from JUnit");
         //poll again
         records = messageConsumer.poll(1000);
         //verify that u received a message
@@ -107,9 +107,9 @@ public class PollingConsumerProducerTest {
         assert(records.isEmpty());
         messageConsumer.commitSync();
         //send a message
-        kafkaTemplate.send(DEMO_TOPIC, "key1","Test message from JUnit 1" );
-        kafkaTemplate.send(DEMO_TOPIC, "key2","Test message from JUnit 2");
-        kafkaTemplate.send(DEMO_TOPIC, "key3","Test message from JUnit 3");
+        kafkaTemplate.send(Topology.DEMO_TOPIC, "key1","Test message from JUnit 1" );
+        kafkaTemplate.send(Topology.DEMO_TOPIC, "key2","Test message from JUnit 2");
+        kafkaTemplate.send(Topology.DEMO_TOPIC, "key3","Test message from JUnit 3");
         //poll again
         records = messageConsumer.poll(1000);
         //verify that u received the messages

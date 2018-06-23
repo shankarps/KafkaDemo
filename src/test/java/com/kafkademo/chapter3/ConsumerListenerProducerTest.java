@@ -1,7 +1,7 @@
-package com.shankar.KafkaDemo.chapter3;
+package com.kafkademo.chapter3;
 
+import com.kafkademo.Topology;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static com.shankar.KafkaDemo.Topology.DEMO_TOPIC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -38,7 +37,7 @@ import static org.junit.Assert.assertTrue;
 public class ConsumerListenerProducerTest {
 
     @ClassRule
-    public static KafkaEmbedded kafkaServer = new KafkaEmbedded(1, true, 1, DEMO_TOPIC);
+    public static KafkaEmbedded kafkaServer = new KafkaEmbedded(1, true, 1, Topology.DEMO_TOPIC);
     private static DefaultKafkaConsumerFactory<Integer, String> consumerFactory;
     private static KafkaMessageListenerContainer<Integer, String> messageListenerContainer;
 
@@ -65,7 +64,7 @@ public class ConsumerListenerProducerTest {
         MessageListener listener = message -> {messageCountdown();
                                                 System.out.println("received: "+message);};
 
-        ContainerProperties containerProps = new ContainerProperties(DEMO_TOPIC);
+        ContainerProperties containerProps = new ContainerProperties(Topology.DEMO_TOPIC);
 
         containerProps.setMessageListener(listener);
 
@@ -86,7 +85,7 @@ public class ConsumerListenerProducerTest {
 
     @Test
     public void testSendReceive() throws Exception {
-        template.setDefaultTopic(DEMO_TOPIC);
+        template.setDefaultTopic(Topology.DEMO_TOPIC);
         template.sendDefault(0, "Test message 1");
         template.flush();
         template.sendDefault(1, "Test message 2");

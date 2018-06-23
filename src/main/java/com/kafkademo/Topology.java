@@ -1,4 +1,4 @@
-package com.shankar.KafkaDemo;
+package com.kafkademo;
 
 public class Topology {
 
