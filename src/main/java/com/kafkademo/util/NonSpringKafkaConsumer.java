@@ -34,8 +34,6 @@ public class NonSpringKafkaConsumer {
         props.put("session.timeout.ms", "30000");
         props.put("key.deserializer", deserializer);
         props.put("value.deserializer", deserializer);
-        props.put("key.serializer", serializer);
-        props.put("value.serializer", serializer);
 
         return props;
     }
@@ -61,6 +59,10 @@ public class NonSpringKafkaConsumer {
 
     }
 
+    public List<ConsumerRecord> consumeMessagesFromTopic(String brokers, String topic) {
+        return consumeMessagesFromTopic(brokers, topic, 1, 1);
+    }
+
     public List<ConsumerRecord> consumeMessagesFromTopic(String brokers, String topic, int pollCount, int maxMessages){
 
         ArrayList<ConsumerRecord> messages = new ArrayList<>();
@@ -69,21 +71,68 @@ public class NonSpringKafkaConsumer {
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
         int messagesConsumed = 0;
-        while (pollCount-- > 0 && (messagesConsumed < maxMessages )) {
+        while (pollCount-- > 0 && messagesConsumed < maxMessages) {
             ConsumerRecords<String, String> records = consumer.poll(1000);
             for (ConsumerRecord<String, String> record : records) {
-                messagesConsumed++;
-                messages.add(record);
+                if(messagesConsumed < maxMessages) {
+                    messagesConsumed++;
+                    messages.add(record);
+                }else{
+                    break;
+                }
             }
         }
 
         return messages;
     }
 
+   /*
+    * Send message to the Topic.
+    */
+
     public void sendMessagetoTopic(String brokers, String topic, String message){
         Properties props = coustructProperties(brokers);
         Producer<String, String> producer = new KafkaProducer<>(props);
         producer.send(new ProducerRecord(topic, ""+message.hashCode()+Math.random(), message));
     }
+
+   /*
+    * Search and return messages that have the matching string.
+    *
+    */
+    public List<ConsumerRecord> searchMatchingMessageFromTopic(String brokers, String topic, int pollCount, int maxMessages, String searchStr){
+
+        ArrayList<ConsumerRecord> messages = new ArrayList<>();
+        Properties props = coustructProperties(brokers);
+
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(Arrays.asList(topic));
+        int messagesConsumed = 0;
+        while (pollCount-- > 0 && messagesConsumed < maxMessages) {
+            ConsumerRecords<String, String> records = consumer.poll(1000);
+            for (ConsumerRecord<String, String> record : records) {
+                if(messagesConsumed < maxMessages) {
+                    messagesConsumed++;
+                    if(record.value().contains(searchStr)) {
+                        messages.add(record);
+                    }
+                }else{
+                    break;
+                }
+            }
+        }
+
+        return messages;
+    }
+
+    /*
+    * Search and return messages that have the matching string.
+    *
+    */
+    public List<ConsumerRecord> searchMatchingMessageFromTopic(String brokers, String topic, String searchStr){
+
+        return searchMatchingMessageFromTopic(brokers, topic, 1000, 1000000, searchStr);
+    }
+
 
 }
