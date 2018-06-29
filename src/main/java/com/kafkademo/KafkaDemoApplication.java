@@ -15,7 +15,7 @@ public class KafkaDemoApplication {
         ApplicationContext context = SpringApplication.run(KafkaDemoApplication.class, args);
         NonSpringKafkaConsumer kafkaConsumer = context.getBean(NonSpringKafkaConsumer.class);
 
-        List<ConsumerRecord> list = kafkaConsumer.searchMatchingMessageFromTopic(args[0], args[1], "Search Str");
+        List<ConsumerRecord> list = kafkaConsumer.searchMatchingMessageFromTopic(args[0], args[1], args[2]);
 
         //Search for messages that have the search string. Loop and print them.
         list.stream().forEach(s -> {
