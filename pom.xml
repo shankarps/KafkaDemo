@@ -42,7 +42,10 @@
 		<dependency>
 			<groupId>org.springframework.kafka</groupId>
 			<artifactId>spring-kafka-test</artifactId>
-			<!--<version>2.1.6.RELEASE</version>-->
+            <!-- Do not specify version explicitly.
+            Refer https://stackoverflow.com/questions/50730693/java-lang-noclassdeffounderror-when-running-kafkaembedded-for-unit-test
+            -->
+            <!--<version>2.1.6.RELEASE</version>-->
 			<!--<scope>test</scope>-->
 		</dependency>
 	</dependencies>

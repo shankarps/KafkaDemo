@@ -32,6 +32,7 @@ import static junit.framework.TestCase.assertTrue;
  * This Test case runs plain Java code to send and receive a message to Kafka.
  * The Spring Kafka template and Container are created as plain Java objects without
  * any annotations/auto-wiring.
+ * This code is the same code from the docs. It has been modified slightly for easier understanding.
  * Refer https://docs.spring.io/spring-kafka/reference/htmlsingle/#_very_very_quick
  */
 public class PlainJavaSendReceiveMessageTest {
@@ -42,9 +43,9 @@ public class PlainJavaSendReceiveMessageTest {
 
     @Test
     public void testAutoCommit() throws Exception {
-        logger.info("Start auto");
+        logger.info("Start auto commit");
         ContainerProperties containerProps = new ContainerProperties(Topology.DEMO_TOPIC);
-        final CountDownLatch latch = new CountDownLatch(4);
+        CountDownLatch latch = new CountDownLatch(4);
         containerProps.setMessageListener(new MessageListener<Integer, String>() {
 
             @Override
@@ -61,9 +62,9 @@ public class PlainJavaSendReceiveMessageTest {
         KafkaTemplate<Integer, String> template = createTemplate();
         template.setDefaultTopic(Topology.DEMO_TOPIC);
         template.sendDefault(0, "foo");
-        template.sendDefault(2, "bar");
-        template.sendDefault(0, "baz");
-        template.sendDefault(2, "qux");
+        template.sendDefault(1, "bar");
+        template.sendDefault(2, "baz");
+        template.sendDefault(3, "qux");
         template.flush();
         assertTrue(latch.await(60, TimeUnit.SECONDS));
         container.stop();
@@ -84,7 +85,7 @@ public class PlainJavaSendReceiveMessageTest {
     private KafkaTemplate<Integer, String> createTemplate() {
         Map<String, Object> senderProps = senderProps();
         ProducerFactory<Integer, String> pf =
-                new DefaultKafkaProducerFactory<Integer, String>(senderProps);
+                new DefaultKafkaProducerFactory<>(senderProps);
         KafkaTemplate<Integer, String> template = new KafkaTemplate<>(pf);
         return template;
     }
