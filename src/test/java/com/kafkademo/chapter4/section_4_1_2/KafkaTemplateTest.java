@@ -43,7 +43,7 @@ public class KafkaTemplateTest {
     KafkaTemplate kafkaTemplate;
 
     @Autowired
-    Listener listener;
+    DemoTopicListener listener;
 
     @Before
     public void resetListenerMessages() {
@@ -99,6 +99,22 @@ public class KafkaTemplateTest {
         assert (listener.getMessages().get(0).key().equals("key1"));
     }
 
+    /**
+     * Test the ListenableFuture<SendResult<K, V>> send(String topic, K key, V data); method.
+     *
+     * @throws InterruptedException
+     */
+    @Test
+    public void testSendTopicDataToDefaultTopicWithPartition() throws InterruptedException {
+        kafkaTemplate.setDefaultTopic(Topology.DEMO_TOPIC);
+        kafkaTemplate.send("Topic2",0, "key1", "Test message with key and topic");
+        kafkaTemplate.flush();
+        Thread.sleep(500);
+        assert (listener.getMessages().size() == 1);
+        assert (listener.getMessages().get(0).value().equals("Test message with key and topic"));
+        assert (listener.getMessages().get(0).key().equals("key1"));
+    }
+
     @Configuration
     @EnableKafka
     public static class Config {
@@ -125,8 +141,8 @@ public class KafkaTemplateTest {
         }
 
         @Bean
-        public Listener listener() {
-            return new Listener();
+        public DemoTopicListener listener() {
+            return new DemoTopicListener();
         }
 
         @Bean
@@ -160,11 +176,11 @@ public class KafkaTemplateTest {
     }
 }
 
-class Listener {
+class DemoTopicListener {
 
     private List<ConsumerRecord> messages = new ArrayList<>();
 
-    @KafkaListener(id = "foo", topics = Topology.DEMO_TOPIC)
+    @KafkaListener(id = "foo", topics = {Topology.DEMO_TOPIC, "Topic2"})
     public void listen1(ConsumerRecord message) {
         messages.add(message);
     }
