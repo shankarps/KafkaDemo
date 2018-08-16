@@ -176,6 +176,7 @@ public class KafkaTemplateTest {
     }
 }
 
+
 class DemoTopicListener {
 
     private List<ConsumerRecord> messages = new ArrayList<>();
