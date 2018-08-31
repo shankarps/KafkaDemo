@@ -53,7 +53,7 @@ public class NonSpringKafkaConsumerTest {
         Thread.sleep(2000);
 
         //Verify if messages received.
-        List<ConsumerRecord> records = nonSpringKafkaConsumer.consumeMessagesFromTopic(kafkaServer.getBrokersAsString(), DEMO_TOPIC, 5,1);
+        List<ConsumerRecord> records = nonSpringKafkaConsumer.consumeMessagesFromTopic(kafkaServer.getBrokersAsString(), DEMO_TOPIC, 10,10);
         //since we sent 5 messages, we will get at least 5 messages. There may be more in the topic.
         assert(records.size() >= 5);
 

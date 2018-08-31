@@ -76,7 +76,8 @@ public class PlainJavaSendReceiveMessage3Partitions1GroupTest {
         logger.info("Partitions "+container1.getAssignedPartitions().toString());
 
         //Verify that each container has 1 assigned partition.
-        assertTrue(container1.getAssignedPartitions().size() == 1);
+        assertTrue("Unexpected partitions size "+container1.getAssignedPartitions().size(),
+                container1.getAssignedPartitions().size() == 1);
         assertTrue(container2.getAssignedPartitions().size() == 1);
         assertTrue(container3.getAssignedPartitions().size() == 1);
 
