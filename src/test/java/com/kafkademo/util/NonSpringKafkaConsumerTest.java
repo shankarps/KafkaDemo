@@ -50,7 +50,7 @@ public class NonSpringKafkaConsumerTest {
         for(int i=0; i < 5; i++){
             nonSpringKafkaConsumer.sendMessagetoTopic(kafkaServer.getBrokersAsString(), DEMO_TOPIC, "This is a test message "+i);
         }
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
         //Verify if messages received.
         List<ConsumerRecord> records = nonSpringKafkaConsumer.consumeMessagesFromTopic(kafkaServer.getBrokersAsString(), DEMO_TOPIC, 5,1);

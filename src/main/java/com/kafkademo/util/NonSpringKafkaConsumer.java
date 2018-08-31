@@ -32,6 +32,8 @@ public class NonSpringKafkaConsumer {
         props.put("auto.commit.interval.ms", "1000");
         props.put("auto.offset.reset", "earliest");
         props.put("session.timeout.ms", "30000");
+        props.put("key.serializer", serializer);
+        props.put("value.serializer", serializer);
         props.put("key.deserializer", deserializer);
         props.put("value.deserializer", deserializer);
 
