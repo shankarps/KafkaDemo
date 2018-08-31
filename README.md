@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/shankarps/KafkaDemo.svg?branch=master)](https://travis-ci.org/shankarps/KafkaDemo)
+
 ## KafkaDemo
 A project to demo the features of Kafka. This open source project is to practice code the concepts from the documentation of the Spring Kafka library.
 
