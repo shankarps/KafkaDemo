@@ -4,6 +4,8 @@ import com.kafkademo.Topology;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.Before;
@@ -18,13 +20,18 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.support.ProducerListener;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
+import org.springframework.lang.Nullable;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.concurrent.ListenableFuture;
+import org.springframework.util.concurrent.ListenableFutureCallback;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This class tests the Send message feature of Kafka Template.
@@ -43,11 +50,14 @@ public class KafkaTemplateTest {
     KafkaTemplate kafkaTemplate;
 
     @Autowired
-    DemoTopicListener listener;
+    DemoTopicConsumer consumer;
+
+    @Autowired
+    CustomProducerListener customProducerListener;
 
     @Before
     public void resetListenerMessages() {
-        listener.setMessages(new ArrayList<ConsumerRecord>());
+        consumer.setMessages(new ArrayList<ConsumerRecord>());
     }
 
     /**
@@ -62,9 +72,9 @@ public class KafkaTemplateTest {
         kafkaTemplate.sendDefault("Test message with default key");
         kafkaTemplate.flush();
         Thread.sleep(500);
-        assert (listener.getMessages().size() == 1);
-        assert (listener.getMessages().get(0).value().equals("Test message with default key"));
-        logger.info("Default Key is " + listener.getMessages().get(0).key());
+        assert (consumer.getMessages().size() == 1);
+        assert (consumer.getMessages().get(0).value().equals("Test message with default key"));
+        logger.info("Default Key is " + consumer.getMessages().get(0).key());
     }
 
     /**
@@ -78,9 +88,9 @@ public class KafkaTemplateTest {
         kafkaTemplate.sendDefault("key1", "Test message with key and topic");
         kafkaTemplate.flush();
         Thread.sleep(500);
-        assert (listener.getMessages().size() == 1);
-        assert (listener.getMessages().get(0).value().equals("Test message with key and topic"));
-        assert (listener.getMessages().get(0).key().equals("key1"));
+        assert (consumer.getMessages().size() == 1);
+        assert (consumer.getMessages().get(0).value().equals("Test message with key and topic"));
+        assert (consumer.getMessages().get(0).key().equals("key1"));
     }
 
     /**
@@ -94,9 +104,9 @@ public class KafkaTemplateTest {
         kafkaTemplate.sendDefault(0, "key1", "Test message with key and topic");
         kafkaTemplate.flush();
         Thread.sleep(500);
-        assert (listener.getMessages().size() == 1);
-        assert (listener.getMessages().get(0).value().equals("Test message with key and topic"));
-        assert (listener.getMessages().get(0).key().equals("key1"));
+        assert (consumer.getMessages().size() == 1);
+        assert (consumer.getMessages().get(0).value().equals("Test message with key and topic"));
+        assert (consumer.getMessages().get(0).key().equals("key1"));
     }
 
     /**
@@ -110,9 +120,103 @@ public class KafkaTemplateTest {
         kafkaTemplate.send("Topic2",0, "key1", "Test message with key and topic");
         kafkaTemplate.flush();
         Thread.sleep(500);
-        assert (listener.getMessages().size() == 1);
-        assert (listener.getMessages().get(0).value().equals("Test message with key and topic"));
-        assert (listener.getMessages().get(0).key().equals("key1"));
+        //check that the consumer got
+        assert (consumer.getMessages().size() == 1);
+        assert (consumer.getMessages().get(0).value().equals("Test message with key and topic"));
+        assert (consumer.getMessages().get(0).key().equals("key1"));
+    }
+
+    /**
+     * Test the metrics() method.
+     *
+     * @throws InterruptedException
+     */
+    @Test
+    public void testMerics() throws InterruptedException {
+        kafkaTemplate.setDefaultTopic(Topology.DEMO_TOPIC);
+        kafkaTemplate.sendDefault("key1", "Test message with key and topic");
+        kafkaTemplate.sendDefault("key2", "Test message with key and topic");
+        kafkaTemplate.sendDefault("key3", "Test message with key and topic");
+
+        kafkaTemplate.flush();
+        Thread.sleep(500);
+
+        Map metrics = kafkaTemplate.metrics();
+        //check that there are metrics
+        assert(metrics != null);
+
+    }
+
+    /**
+     * Test the partitionsFor() method.
+     *
+     * @throws InterruptedException
+     */
+    @Test
+    public void testPartitionsFor() throws InterruptedException {
+        kafkaTemplate.setDefaultTopic(Topology.DEMO_TOPIC);
+        kafkaTemplate.sendDefault("key1", "Test message with key and topic");
+        kafkaTemplate.sendDefault("key2", "Test message with key and topic");
+        kafkaTemplate.sendDefault("key3", "Test message with key and topic");
+
+        kafkaTemplate.flush();
+        Thread.sleep(500);
+
+        List<PartitionInfo> partitionInfo = kafkaTemplate.partitionsFor(Topology.DEMO_TOPIC);
+        assert(partitionInfo != null);
+        //check that merics exist for 1 partition (configured for this topic)
+        assert(partitionInfo.size() ==1);
+
+    }
+
+    @Test
+    public void testProducerListener() throws InterruptedException {
+        kafkaTemplate.setDefaultTopic(Topology.DEMO_TOPIC);
+        kafkaTemplate.setProducerListener(customProducerListener);
+        kafkaTemplate.sendDefault("key1", "Test message with key and topic");
+        kafkaTemplate.sendDefault("key2", "Test message with key and topic");
+        kafkaTemplate.sendDefault("key3", "Test message with key and topic");
+
+        kafkaTemplate.flush();
+        Thread.sleep(500);
+
+        //verify listener has messages
+        assert(customProducerListener.getMessages() != null);
+
+        //verify listener has 3 messages
+        assert(customProducerListener.getMessages().size() == 3);
+
+    }
+
+    @Test
+    public void testListenableFuture() throws InterruptedException {
+        kafkaTemplate.setDefaultTopic(Topology.DEMO_TOPIC);
+        //Send a message and handle status async.
+        ListenableFuture<SendResult<String, String>> future = kafkaTemplate.sendDefault("key1", "Test message with key and topic");
+        future.addCallback(new ListenableFutureCallback<SendResult<String, String>>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+
+            }
+
+            @Override
+            public void onSuccess(@Nullable SendResult<String, String> stringStringSendResult) {
+
+            }
+        });
+
+        //Send a message and handle status blocking (sync).
+        try {
+            kafkaTemplate.sendDefault("key2", "Test message with key and topic").get(10, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+        }
+
+
+        kafkaTemplate.flush();
+        Thread.sleep(500);
     }
 
     @Configuration
@@ -141,13 +245,19 @@ public class KafkaTemplateTest {
         }
 
         @Bean
-        public DemoTopicListener listener() {
-            return new DemoTopicListener();
+        public DemoTopicConsumer listener() {
+            return new DemoTopicConsumer();
+        }
+
+        @Bean
+        public CustomProducerListener customProducerListener() {
+            return new CustomProducerListener();
         }
 
         @Bean
         public KafkaTemplate kafkaTemplate() {
-            return new KafkaTemplate(producerFactory());
+            KafkaTemplate kafkaTemplate = new KafkaTemplate(producerFactory());
+            return kafkaTemplate;
         }
 
         @Bean
@@ -176,8 +286,30 @@ public class KafkaTemplateTest {
     }
 }
 
+class CustomProducerListener implements ProducerListener<String, String> {
 
-class DemoTopicListener {
+    private HashMap<String, String> messages = new HashMap<>();
+
+    @Override
+    public void onSuccess(String topic, Integer partition, String key, String value, RecordMetadata recordMetadata) {
+        messages.put(key, value);
+    }
+
+    @Override
+    public void onError(String s, Integer integer, String o, String o2, Exception e) {
+    }
+
+    @Override
+    public boolean isInterestedInSuccess() {
+        return true;
+    }
+
+    public HashMap<String, String> getMessages() {
+        return messages;
+    }
+}
+
+class DemoTopicConsumer {
 
     private List<ConsumerRecord> messages = new ArrayList<>();
 
