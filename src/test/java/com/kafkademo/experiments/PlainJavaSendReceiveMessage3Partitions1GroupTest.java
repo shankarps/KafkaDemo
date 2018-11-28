@@ -71,7 +71,7 @@ public class PlainJavaSendReceiveMessage3Partitions1GroupTest {
         container2.start();
         container3.start();
 
-        Thread.sleep(1000); // wait a bit for the container to start
+        Thread.sleep(2000); // wait a bit for the container to start
 
         logger.info("Partitions "+container1.getAssignedPartitions().toString());
 
