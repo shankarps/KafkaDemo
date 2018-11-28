@@ -71,13 +71,25 @@ public class ReplyingKafkaTemplateTest {
 
         //Set the reply topic. The server will use this to send its reply.
         record.headers().add(new RecordHeader(KafkaHeaders.REPLY_TOPIC,"PROCESSED".getBytes()));
-        //set a correlation id to keep track.
-        record.headers().add(new RecordHeader(KafkaHeaders.CORRELATION_ID, CORRELATION_ID));
+        //WARN this will be overwritten. Template will set a correlation ID.
+        //record.headers().add(new RecordHeader(KafkaHeaders.CORRELATION_ID, CORRELATION_ID));
         //Send
         RequestReplyFuture<String, String, String> replyFuture = replyingKafkaTemplate.sendAndReceive(record);
         //Check that send is a success.
         SendResult<String, String> sendResult = replyFuture.getSendFuture().get();
-        assert(sendResult.getRecordMetadata() != null);
+
+        //Get the correlation ID added by the template.
+        Header[] producerHeaders = sendResult.getProducerRecord().headers().toArray();
+        Header producerCorrelationHeader = null;
+        for(Header header : producerHeaders){
+            System.out.println("HEADER " + header.key());
+            System.out.println("Value " + Arrays.toString(header.value()));
+            if(KafkaHeaders.CORRELATION_ID.equals(header.key())) {
+                producerCorrelationHeader = header;
+            }
+        }
+        assertNotNull(producerCorrelationHeader);
+
         //wait and consume.
         Thread.sleep(500);
         ConsumerRecord<String, String> consumerRecord = replyFuture.get();
@@ -96,14 +108,11 @@ public class ReplyingKafkaTemplateTest {
             }
         }
 
-        //check that you have the correlation ID header.
+        //check that you have the correlation ID header in the response message.
         assertNotNull(correlationHeader);
 
-        //check that correlation headers are equal.
-        //This is failing now!
-        //TODO try to match the correlation IDs.
-        //assert(Arrays.equals(correlationHeader.value(), CORRELATION_ID));
-
+        //check that correlation headers are equal for the sent message and the received reply message.
+        assert(Arrays.equals(correlationHeader.value(), producerCorrelationHeader.value()));
     }
 
     @Configuration
